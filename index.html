@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>lab.bastitch.com</title>
+<style>
+  :root {
+    --bg: #0d1014;
+    --card: #161b22;
+    --border: #2a313c;
+    --text: #e6e8eb;
+    --muted: #8b949e;
+    --accent: #7ee787;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 16px/1.5 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  }
+  main { max-width: 900px; margin: 0 auto; padding: 48px 20px 80px; }
+  h1 { font-size: 28px; margin: 0 0 4px; }
+  h1 span { color: var(--accent); }
+  .sub { color: var(--muted); margin: 0 0 32px; }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 14px;
+  }
+  a.card {
+    display: block;
+    padding: 16px 18px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: inherit;
+    text-decoration: none;
+    transition: border-color .15s, transform .15s;
+  }
+  a.card:hover { border-color: var(--accent); transform: translateY(-2px); }
+  .name { font-weight: 700; color: var(--accent); }
+  .desc { color: var(--muted); font-size: 14px; margin-top: 6px; min-height: 1.5em; }
+  .tags { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 6px; }
+  .tag {
+    font-size: 12px;
+    padding: 1px 8px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    color: var(--muted);
+  }
+  .status { color: var(--muted); }
+  footer { margin-top: 48px; color: var(--muted); font-size: 13px; }
+  footer a { color: var(--muted); }
+</style>
+</head>
+<body>
+<main>
+  <h1><span>lab</span>.bastitch.com</h1>
+  <p class="sub">Games, toys, and experiments.</p>
+  <div id="list" class="grid"><p class="status">Loading...</p></div>
+  <footer>Source on <a href="https://github.com/bastitch">GitHub</a></footer>
+</main>
+
+<script>
+  // Settings
+  const USER = "bastitch";
+  const BASE = "https://lab.bastitch.com";
+  const HIDE = ["bastitch.github.io"];   // repos to leave off the list
+  const REQUIRE_TOPIC = "";              // e.g. "lab" to only show repos tagged with that topic
+
+  const list = document.getElementById("list");
+
+  function esc(s) {
+    return String(s ?? "").replace(/[&<>"']/g, c => ({
+      "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+    }[c]));
+  }
+
+  async function load() {
+    try {
+      const res = await fetch(`https://api.github.com/users/${USER}/repos?per_page=100&sort=updated`);
+      if (!res.ok) throw new Error(res.status);
+      const repos = (await res.json())
+        .filter(r => r.has_pages && !r.fork && !r.archived)
+        .filter(r => !HIDE.includes(r.name))
+        .filter(r => !REQUIRE_TOPIC || (r.topics || []).includes(REQUIRE_TOPIC));
+
+      if (!repos.length) {
+        list.innerHTML = '<p class="status">Nothing here yet.</p>';
+        return;
+      }
+
+      list.innerHTML = repos.map(r => {
+        const url = r.homepage || `${BASE}/${r.name}/`;
+        const tags = (r.topics || [])
+          .filter(t => t !== REQUIRE_TOPIC)
+          .map(t => `<span class="tag">${esc(t)}</span>`).join("");
+        return `
+          <a class="card" href="${esc(url)}">
+            <div class="name">${esc(r.name)}</div>
+            <div class="desc">${esc(r.description || "")}</div>
+            ${tags ? `<div class="tags">${tags}</div>` : ""}
+          </a>`;
+      }).join("");
+    } catch (e) {
+      list.innerHTML = `<p class="status">Couldn't load the project list right now. <a href="https://github.com/${USER}?tab=repositories">Browse on GitHub</a>.</p>`;
+    }
+  }
+
+  load();
+</script>
+</body>
